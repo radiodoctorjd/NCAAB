@@ -171,9 +171,6 @@ footer a{color:var(--court)}
 
 <footer>
   <div class="wrap">
-    <span>Model: tempo-free efficiency (AdjO × opponent AdjD, adjusted tempo), home court, conference-strength pull.</span>
-    <span>Ratings: Bart Torvik T-Rank. Schedule, scores and lines: ESPN.</span>
-    <span>Data lives in the <a href="https://docs.google.com/spreadsheets/d/1jyHIcDf8Z7Yo8omiD44ToEcQXofiGdoU96WE6VYMjHc/edit" target="_blank" rel="noopener">NCAAB Prediction Model</a> sheet.</span>
     <span id="updated"></span>
   </div>
 </footer>
@@ -241,7 +238,7 @@ function renderSource(){
   else if (S.source==="snapshot") lab.textContent = "Saved snapshot";
   else lab.textContent = S.liveErr ? "Not connected" : "Loading…";
   const up = $("#updated");
-  up.textContent = S.storedAt ? `Data as of ${new Date(S.storedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "";
+  up.textContent = S.lastUpdate ? `Last data update: ${S.lastUpdate}` : "";
 }
 
 function renderDay(which){
@@ -273,7 +270,7 @@ function renderDay(which){
   };
   list.sort(sorters[ui.sort] || sorters.tip);
 
-  const confOpts = Object.keys(ci).sort((a,b)=>(ci[a].rank||99)-(ci[b].rank||99)).map(c => `<option value="${esc(c)}"${ui.conf===c?" selected":""}>${esc(ci[c].name||c)}</option>`).join("");
+  const confOpts = Object.keys(ci).sort((a,b)=>(ci[a].name||a).localeCompare(ci[b].name||b)).map(c => `<option value="${esc(c)}"${ui.conf===c?" selected":""}>${esc(ci[c].name||c)}</option>`).join("");
   const segBtn = (val,label) => `<button type="button" data-tier="${val}" aria-pressed="${ui.tier===val}">${label}</button>`;
   $("#view").innerHTML = `
     <div class="dayhead">
@@ -365,7 +362,7 @@ function renderTeams(){
   let list = rows.filter(x => (ui.teamConf==="all" || x.conf===ui.teamConf) && (!ui.teamQ || x.team.toLowerCase().includes(ui.teamQ.toLowerCase())));
   const k=ui.teamSort.k, dir=ui.teamSort.dir;
   list.sort((a,b) => { const va=a[k], vb=b[k]; if (typeof va==="string") return dir*va.localeCompare(vb); return dir*((va??-1e9)-(vb??-1e9)); });
-  const confOpts = Object.keys(ci).sort((a,b)=>(ci[a].rank||99)-(ci[b].rank||99)).map(c => `<option value="${esc(c)}"${ui.teamConf===c?" selected":""}>${esc(ci[c].name||c)}</option>`).join("");
+  const confOpts = Object.keys(ci).sort((a,b)=>(ci[a].name||a).localeCompare(ci[b].name||b)).map(c => `<option value="${esc(c)}"${ui.teamConf===c?" selected":""}>${esc(ci[c].name||c)}</option>`).join("");
   const th = (key,label,cls="") => `<th class="${cls}" data-k="${key}" aria-sort="${k===key?(dir>0?"ascending":"descending"):"none"}" scope="col">${label}</th>`;
   $("#view").innerHTML = `
     <h2 class="section-h">Team ratings</h2>
@@ -473,6 +470,11 @@ async function loadAll(){
       return [name, parseCSV(text)];
     }));
     entries.forEach(([n,v]) => S[n]=v);
+    try {
+      const r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=0&sheet=Settings&range=A30:B30`, {cache:"no-store"});
+      const row = parseCSV(await r.text())[0] || [];
+      if (row[0]==="Last data update" && row[1]) S.lastUpdate = row[1];
+    } catch(_) {}
     S.acc = computeAccuracy();
     S.source="live"; S.storedAt=Date.now(); S.liveErr=null;
     $("#notice").innerHTML="";
