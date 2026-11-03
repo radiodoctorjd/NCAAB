@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="NCAA men's basketball game predictions: winners, spreads, totals and team totals.">
+<title>NCAAB Model Picks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root{color-scheme:light}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Layout: sticky scoreboard header with day/tab switcher, filter rail, responsive grid of game cards; tables for teams, conferences, accuracy. */
+:root{
+  --bg:#F1F3F6; --surface:#FFFFFF; --surface-2:#E7EBF1; --fg:#132033; --muted:#5A6779; --line:#D3DAE4;
+  --accent:#C9661A; --accent-soft:#F7E3D2; --court:#1F4E8C; --court-soft:#DCE7F5;
+  --good:#1B7A4B; --good-bg:#D9F0E3; --warn:#8F5E00; --warn-bg:#FBEBC6; --bad:#B03535; --bad-bg:#F7DADA;
+  --away:#8A96A8; --home:#1F4E8C;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow","Segoe UI",Arial,sans-serif;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C121A; --surface:#131B26; --surface-2:#1A2431; --fg:#E4EAF2; --muted:#93A0B3; --line:#253244;
+  --accent:#F08B32; --accent-soft:#3A2614; --court:#6FA3E8; --court-soft:#182A42;
+  --good:#52C78F; --good-bg:#143224; --warn:#E3B24E; --warn-bg:#3A2E12; --bad:#F27D7D; --bad-bg:#3D1B1B;
+  --away:#5D6A7D; --home:#6FA3E8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C121A; --surface:#131B26; --surface-2:#1A2431; --fg:#E4EAF2; --muted:#93A0B3; --line:#253244;
+  --accent:#F08B32; --accent-soft:#3A2614; --court:#6FA3E8; --court-soft:#182A42;
+  --good:#52C78F; --good-bg:#143224; --warn:#E3B24E; --warn-bg:#3A2E12; --bad:#F27D7D; --bad-bg:#3D1B1B;
+  --away:#5D6A7D; --home:#6FA3E8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding-block:12px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand h1{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+.brand h1 b{color:var(--accent);font-weight:700}
+.brand small{color:var(--muted);font-size:13px;white-space:nowrap}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav.tabs a{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px}
+nav.tabs a:hover{color:var(--fg);background:var(--surface-2)}
+nav.tabs a[aria-current="page"]{color:var(--accent-ink,#fff);background:var(--court);color:#fff}
+:root[data-theme="dark"] nav.tabs a[aria-current="page"]{color:#0C121A}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) nav.tabs a[aria-current="page"]{color:#0C121A}}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:18px 40px}
+.notice{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid var(--line);background:var(--surface);border-left:4px solid var(--accent);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px}
+.notice p{margin:0;flex:1 1 260px;min-width:0}
+.notice.err{border-left-color:var(--bad)}
+.btn{font:inherit;font-weight:600;font-size:14px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--court)}
+.btn.primary{background:var(--court);border-color:var(--court);color:#fff}
+.dayhead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px;margin-bottom:12px}
+.dayhead h2{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;margin:0;text-wrap:balance}
+.dayhead .sub{color:var(--muted);font-size:14px}
+.strip{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;display:flex;align-items:baseline;gap:8px}
+.stat b{font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+.filters{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-bottom:16px}
+.filters input[type=search],.filters select{font:inherit;font-size:14px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.filters input[type=search]{flex:1 1 200px;max-width:280px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{font:inherit;font-size:13px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--court-soft);color:var(--court)}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--court);width:16px;height:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+@media (max-width:420px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px 10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card.final{opacity:.92}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.meta .time{font-family:var(--display);font-weight:600;font-size:16px;color:var(--fg);letter-spacing:.02em}
+.pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.pill.live{background:var(--bad-bg);color:var(--bad)}
+.pill.final{background:var(--surface-2);color:var(--fg)}
+.pill.neutral{background:var(--court-soft);color:var(--court)}
+.pill.strong{background:var(--good-bg);color:var(--good)}
+.pill.moderate{background:var(--warn-bg);color:var(--warn)}
+.pill.toss{background:var(--bad-bg);color:var(--bad)}
+.pill.ok{background:var(--good-bg);color:var(--good)}
+.pill.miss{background:var(--bad-bg);color:var(--bad)}
+.meta .right{margin-left:auto;display:flex;gap:6px}
+.teams{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 12px;align-items:center}
+.tname{display:flex;align-items:center;gap:8px;min-width:0}
+.tname strong{font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tname.pick strong{color:var(--fg)}
+.tname:not(.pick) strong{color:var(--muted);font-weight:500}
+.conf{font-size:11px;font-weight:600;letter-spacing:.04em;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;flex:none}
+.conf.t1{border-color:var(--court);color:var(--court)}
+.conf.t2{border-color:var(--accent);color:var(--accent)}
+.wp{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.pts{font-family:var(--display);font-weight:700;font-size:26px;line-height:1;font-variant-numeric:tabular-nums;text-align:right;min-width:3.2ch}
+.pts small{display:block;font-family:var(--body);font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.score{font-family:var(--display);font-weight:600;font-size:18px;color:var(--accent);font-variant-numeric:tabular-nums}
+.bar{height:6px;border-radius:999px;background:var(--away);overflow:hidden;display:flex}
+.bar i{display:block;height:100%;background:var(--home);margin-left:auto}
+.lines{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;border-top:1px dashed var(--line);padding-top:8px}
+.lines div{min-width:0}
+.lines dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lines dd{margin:0;font-weight:600;font-size:14px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.lines dd.mk{font-weight:500;color:var(--muted)}
+.leans{display:flex;flex-wrap:wrap;gap:6px}
+.lean{font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-variant-numeric:tabular-nums}
+.lean em{font-style:normal;font-weight:500;opacity:.8}
+details.more summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"+ ";}
+details.more[open] summary::before{content:"− ";}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 14px;font-size:13px;margin-top:6px;font-variant-numeric:tabular-nums}
+.kv span{color:var(--muted)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);padding:28px;text-align:center;color:var(--muted)}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--surface);cursor:pointer;user-select:none}
+th.l,td.l{text-align:left}
+th[aria-sort="ascending"]::after{content:" ▲";font-size:9px}
+th[aria-sort="descending"]::after{content:" ▼";font-size:9px}
+tbody tr:hover{background:var(--surface-2)}
+td.team{font-weight:600}
+.section-h{font-family:var(--display);font-weight:700;font-size:28px;margin:0 0 10px}
+.cbars{display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px}
+.cbar{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) 52px;align-items:center;gap:10px;font-size:13px}
+.cbar .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbar .track{position:relative;height:14px}
+.cbar .zero{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--muted)}
+.cbar .fill{position:absolute;top:0;bottom:0;border-radius:3px}
+.cbar .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.accgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.accgrid h3{font-family:var(--display);font-size:20px;margin:0 0 8px}
+.note{color:var(--muted);font-size:13px;margin-top:10px;max-width:70ch}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+footer .wrap{padding-block:16px 28px;display:flex;flex-wrap:wrap;gap:6px 18px}
+footer a{color:var(--court)}
+.skel{height:150px;border-radius:var(--radius);background:linear-gradient(90deg,var(--surface) 0%,var(--surface-2) 50%,var(--surface) 100%);background-size:200% 100%;animation:sh 1.4s infinite linear;border:1px solid var(--line)}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><h1>NCAAB <b>Model</b> Picks</h1><small id="srcLabel">Loading…</small></div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#today" data-v="today">Today</a>
+      <a href="#tomorrow" data-v="tomorrow">Tomorrow</a>
+      <a href="#teams" data-v="teams">Teams</a>
+      <a href="#conferences" data-v="conferences">Conferences</a>
+      <a href="#accuracy" data-v="accuracy">Accuracy</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="notice"></div>
+  <div id="view"><div class="grid"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Model: tempo-free efficiency (AdjO × opponent AdjD, adjusted tempo), home court, conference-strength pull.</span>
+    <span>Ratings: Bart Torvik T-Rank. Schedule, scores and lines: ESPN.</span>
+    <span>Data lives in the <a href="https://docs.google.com/spreadsheets/d/1jyHIcDf8Z7Yo8omiD44ToEcQXofiGdoU96WE6VYMjHc/edit" target="_blank" rel="noopener">NCAAB Prediction Model</a> sheet.</span>
+    <span id="updated"></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+const SHEET_ID = "1jyHIcDf8Z7Yo8omiD44ToEcQXofiGdoU96WE6VYMjHc";
+const SERVER = "Google Sheets";
+const RANGES = {
+  preds: "Predictions!A1:AM3000",
+  teams: "Teams!A1:M400",
+  confs: "Conferences!A1:I40",
+  acc: "Accuracy!A3:E19",
+  settings: "Settings!A5:B24"
+};
+// Predictions columns (0-based)
+const C = {date:0,tip:1,away:2,home:3,neutral:4,status:5,as:6,hs:7,line:8,ou:9,mkt:10,aO:11,aD:12,aT:13,hO:14,hD:15,hT:16,aConf:17,hConf:18,type:19,poss:20,aPts:21,hPts:22,spread:23,total:24,aWin:25,hWin:26,pick:27,pickWin:28,conf:29,mmm:30,ats:31,tmm:32,ou_l:33,res:34,atsRes:35,ouRes:36};
+
+const S = { preds:null, teams:null, confs:null, acc:null, settings:null, source:"none", storedAt:null, liveErr:null };
+const ui = { q:"", conf:"all", tier:"all", edges:false, hideNd1:false, sort:"tip", teamQ:"", teamConf:"all", teamSort:{k:"net",dir:-1} };
+try { const s = JSON.parse(localStorage.getItem("ncaab-ui")||"{}"); if (typeof s.hideNd1==="boolean") ui.hideNd1=s.hideNd1; if (s.sort) ui.sort=s.sort; } catch(e) {}
+function saveUi(){ try{ localStorage.setItem("ncaab-ui", JSON.stringify({hideNd1:ui.hideNd1, sort:ui.sort})); }catch(e){} }
+
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function num(v){ if (v==null || v==="") return null; const s=String(v).replace(/,/g,"").trim(); const pct=s.endsWith("%"); const x=parseFloat(s.replace("%","")); return isNaN(x)?null:(pct?x/100:x); }
+const f1 = x => x==null ? "—" : x.toFixed(1);
+const minus = s => s.replace(/-/g,"−");
+const pct = x => x==null ? "—" : (x*100 >= 99.95 ? ">99.9" : x*100 < 0.05 ? "<0.1" : (x*100).toFixed(1)) + "%";
+const cell = (r,i) => (r && r[i] != null) ? r[i] : "";
+
+function favLine(sp, away, home){
+  if (sp==null) return "—";
+  if (Math.abs(sp) < 0.05) return "Pick'em";
+  return (sp < 0 ? home : away) + " " + minus("-" + Math.abs(sp).toFixed(1));
+}
+function dateKey(s){ s=String(s||""); let m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return `${+m[1]}/${+m[2]}/${m[3]}`; m = s.match(/(\d{4})-(\d{2})-(\d{2})/); return m ? `${+m[2]}/${+m[3]}/${m[1]}` : ""; }
+function dateLabel(k){ const m=k.match(/(\d+)\/(\d+)\/(\d+)/); if(!m) return k; const d=new Date(+m[3], +m[1]-1, +m[2]); return d.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"}); }
+function tipTime(s){ const m = String(s||"").match(/(\d{1,2}:\d{2}\s*[AP]M)/i); return m ? m[1] : String(s||""); }
+function tipMinutes(s){ const m = String(s||"").match(/(\d{1,2}):(\d{2})\s*([AP]M)/i); if(!m) return 9999; let h=+m[1]%12; if(m[3].toUpperCase()==="PM") h+=12; return h*60 + +m[2]; }
+
+function settingsMap(){ const m={}; (S.settings||[]).forEach(r => { if (r && r[0]) m[r[0]] = r[1]; }); return m; }
+function slateKey(which){ const d=new Date(Date.now() + (which==="tomorrow"?864e5:0)); return dateKey(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"numeric",day:"numeric"}).format(d)); }
+function confInfo(){ const out={}; (S.confs||[]).slice(1).forEach(r => { if(!r[0]) return; out[r[0]] = {name:r[1], teams:num(r[2]), o:num(r[3]), d:num(r[4]), net:num(r[5]), rank:num(r[6]), vs:num(r[7]), tier:r[8]||""}; }); return out; }
+function tierClass(code, ci){ const t=(ci[code]||{}).tier||""; return t==="Power" ? "t1" : t==="Upper mid-major" ? "t2" : ""; }
+
+function games(){ return (S.preds||[]).slice(1).filter(r => r && r[C.away]).map((r,i) => ({r,i,key:dateKey(r[C.date])})); }
+
+/* ---------- Views ---------- */
+function currentView(){ const h=(location.hash||"").replace("#",""); return ["today","tomorrow","teams","conferences","accuracy"].includes(h) ? h : "today"; }
+function render(){
+  const v = currentView();
+  document.querySelectorAll("nav.tabs a").forEach(a => { if(a.dataset.v===v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  renderSource();
+  if (!S.preds) { if (S.source==="none" && S.liveErr) $("#view").innerHTML = `<div class="empty">No predictions loaded yet.</div>`; return; }
+  if (v==="today" || v==="tomorrow") renderDay(v);
+  else if (v==="teams") renderTeams();
+  else if (v==="conferences") renderConfs();
+  else renderAccuracy();
+}
+
+function renderSource(){
+  const lab = $("#srcLabel");
+  if (S.source==="live") lab.textContent = "Live from the model sheet";
+  else if (S.source==="snapshot") lab.textContent = "Saved snapshot";
+  else lab.textContent = S.liveErr ? "Not connected" : "Loading…";
+  const up = $("#updated");
+  up.textContent = S.storedAt ? `Data as of ${new Date(S.storedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "";
+}
+
+function renderDay(which){
+  const key = slateKey(which);
+  const ci = confInfo();
+  const all = games().filter(g => g.key===key);
+  const finals = all.filter(g => g.r[C.status]==="Final");
+  const correct = finals.filter(g => g.r[C.res]==="Correct").length;
+  const strong = all.filter(g => g.r[C.conf]==="Strong").length;
+  const atsN = all.filter(g => hasLean(g.r[C.ats])).length;
+  const ouN = all.filter(g => hasLean(g.r[C.ou_l])).length;
+  const live = all.filter(g => g.r[C.status]==="In Progress").length;
+
+  let list = all.filter(g => {
+    const r=g.r;
+    if (ui.hideNd1 && r[C.type]==="vs Non-D1") return false;
+    if (ui.tier!=="all" && r[C.conf]!==ui.tier) return false;
+    if (ui.conf!=="all" && r[C.aConf]!==ui.conf && r[C.hConf]!==ui.conf) return false;
+    if (ui.edges && !hasLean(r[C.ats]) && !hasLean(r[C.ou_l])) return false;
+    if (ui.q){ const q=ui.q.toLowerCase(); if(!(r[C.away].toLowerCase().includes(q) || r[C.home].toLowerCase().includes(q))) return false; }
+    return true;
+  });
+  const sorters = {
+    tip: (a,b) => tipMinutes(a.r[C.tip]) - tipMinutes(b.r[C.tip]) || a.i-b.i,
+    prob: (a,b) => (num(b.r[C.pickWin])||0) - (num(a.r[C.pickWin])||0),
+    close: (a,b) => Math.abs(num(a.r[C.spread])||0) - Math.abs(num(b.r[C.spread])||0),
+    edge: (a,b) => gap(b.r) - gap(a.r),
+    total: (a,b) => (num(b.r[C.total])||0) - (num(a.r[C.total])||0)
+  };
+  list.sort(sorters[ui.sort] || sorters.tip);
+
+  const confOpts = Object.keys(ci).sort((a,b)=>(ci[a].rank||99)-(ci[b].rank||99)).map(c => `<option value="${esc(c)}"${ui.conf===c?" selected":""}>${esc(ci[c].name||c)}</option>`).join("");
+  const segBtn = (val,label) => `<button type="button" data-tier="${val}" aria-pressed="${ui.tier===val}">${label}</button>`;
+  $("#view").innerHTML = `
+    <div class="dayhead">
+      <div><div class="sub">${which==="today"?"Today":"Tomorrow"} · tip times Eastern</div><h2>${esc(key?dateLabel(key):"No slate date")}</h2></div>
+    </div>
+    <div class="strip">
+      <div class="stat"><b>${all.length}</b><span>Games</span></div>
+      <div class="stat"><b>${strong}</b><span>Strong picks</span></div>
+      <div class="stat"><b>${atsN}</b><span>ATS leans</span></div>
+      <div class="stat"><b>${ouN}</b><span>O/U leans</span></div>
+      ${live?`<div class="stat"><b>${live}</b><span>Live</span></div>`:""}
+      ${finals.length?`<div class="stat"><b>${correct}/${finals.length}</b><span>Winners correct</span></div>`:""}
+    </div>
+    <div class="filters" role="search">
+      <input id="q" type="search" placeholder="Find a team" value="${esc(ui.q)}" aria-label="Find a team">
+      <select id="confSel" aria-label="Conference"><option value="all">All conferences</option>${confOpts}</select>
+      <div class="seg" role="group" aria-label="Confidence">${segBtn("all","All")}${segBtn("Strong","Strong")}${segBtn("Moderate","Moderate")}${segBtn("Toss-up","Toss-up")}</div>
+      <label class="toggle"><input id="edges" type="checkbox"${ui.edges?" checked":""}> Edges vs market</label>
+      <label class="toggle"><input id="nd1" type="checkbox"${ui.hideNd1?" checked":""}> Hide non-D1 games</label>
+      <select id="sortSel" aria-label="Sort">
+        <option value="tip"${ui.sort==="tip"?" selected":""}>Sort: tip time</option>
+        <option value="prob"${ui.sort==="prob"?" selected":""}>Sort: most confident</option>
+        <option value="close"${ui.sort==="close"?" selected":""}>Sort: closest spread</option>
+        <option value="edge"${ui.sort==="edge"?" selected":""}>Sort: biggest market gap</option>
+        <option value="total"${ui.sort==="total"?" selected":""}>Sort: highest total</option>
+      </select>
+    </div>
+    ${list.length ? `<div class="grid">${list.map(g => card(g.r, ci)).join("")}</div>` :
+      `<div class="empty">${all.length ? "No games match these filters." : "No games on the sheet for this date yet. The daily refresh adds them each morning."}</div>`}
+  `;
+  $("#q").addEventListener("input", e => { ui.q=e.target.value; const pos=e.target.selectionStart; renderDay(which); const q=$("#q"); q.focus(); try{q.setSelectionRange(pos,pos);}catch(_){} });
+  $("#confSel").addEventListener("change", e => { ui.conf=e.target.value; renderDay(which); });
+  $("#sortSel").addEventListener("change", e => { ui.sort=e.target.value; saveUi(); renderDay(which); });
+  $("#edges").addEventListener("change", e => { ui.edges=e.target.checked; renderDay(which); });
+  $("#nd1").addEventListener("change", e => { ui.hideNd1=e.target.checked; saveUi(); renderDay(which); });
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => { ui.tier=b.dataset.tier; renderDay(which); }));
+}
+function gap(r){ const sp=num(r[C.spread]), mk=num(r[C.mkt]); return (sp==null||mk==null)?0:Math.abs(sp-mk); }
+function hasLean(s){ return !!s && s!=="No edge"; }
+
+function card(r, ci){
+  const aWin=num(r[C.aWin]), hWin=num(r[C.hWin]);
+  const homePick = (hWin||0) >= 0.5;
+  const st = r[C.status];
+  const stPill = st==="Final" ? `<span class="pill final">Final</span>` : st==="In Progress" ? `<span class="pill live">Live</span>` : "";
+  const confCls = r[C.conf]==="Strong"?"strong":r[C.conf]==="Moderate"?"moderate":"toss";
+  const res = r[C.res] ? `<span class="pill ${r[C.res]==="Correct"?"ok":"miss"}">${r[C.res]==="Correct"?"Pick correct":"Pick missed"}</span>` : "";
+  const sp = num(r[C.spread]), mk = num(r[C.mkt]);
+  const hasScore = st!=="Scheduled" && r[C.as]!=="" && r[C.as]!=null;
+  const tag = r[C.type]==="Conference" ? "Conference game" : r[C.type]==="vs Non-D1" ? "vs non-D1" : "";
+  const team = (name, code, isPick, win, pts, score, side) => `
+      <div class="tname${isPick?" pick":""}"><span class="conf ${tierClass(code,ci)}" title="${esc((ci[code]||{}).name||"Non-Division I")}">${esc(code==="Non-D1"?"NON-D1":code)}</span><strong title="${esc(name)}">${esc(name)}</strong>${hasScore?`<span class="score" aria-label="${side} score">${esc(score)}</span>`:""}</div>
+      <div class="wp">${pct(win)}</div>
+      <div class="pts">${f1(num(pts))}<small>${side==="away"?"proj":"proj"}</small></div>`;
+  const leans = [];
+  if (hasLean(r[C.ats])) leans.push(`<span class="lean">ATS ${esc(minus(r[C.ats]))} <em>${r[C.atsRes]?"· "+esc(r[C.atsRes]):""}</em></span>`);
+  if (hasLean(r[C.ou_l])) leans.push(`<span class="lean">${esc(r[C.ou_l])} <em>${r[C.ouRes]?"· "+esc(r[C.ouRes]):""}</em></span>`);
+  return `<article class="card${st==="Final"?" final":""}">
+    <div class="meta"><span class="time">${esc(tipTime(r[C.tip]))}</span>${stPill}${r[C.neutral]==="Y"?`<span class="pill neutral">Neutral</span>`:""}${tag?`<span>${tag}</span>`:""}
+      <span class="right"><span class="pill ${confCls}">${esc(r[C.conf])}</span>${res}</span></div>
+    <div class="teams">
+      ${team(r[C.away], r[C.aConf], !homePick, aWin, r[C.aPts], r[C.as], "away")}
+      ${team(r[C.home], r[C.hConf], homePick, hWin, r[C.hPts], r[C.hs], "home")}
+    </div>
+    <div class="bar" role="img" aria-label="Win probability: ${esc(r[C.away])} ${pct(aWin)}, ${esc(r[C.home])} ${pct(hWin)}"><i style="width:${((hWin||0)*100).toFixed(1)}%"></i></div>
+    <dl class="lines">
+      <div><dt>Model spread</dt><dd>${esc(favLine(sp, r[C.away], r[C.home]))}</dd></div>
+      <div><dt>Model total</dt><dd>${f1(num(r[C.total]))}</dd></div>
+      <div><dt>ESPN line</dt><dd class="mk">${mk==null?"No line":esc(favLine(mk, r[C.away], r[C.home]))}${r[C.ou]?` · ${esc(r[C.ou])}`:""}</dd></div>
+    </dl>
+    ${leans.length?`<div class="leans">${leans.join("")}</div>`:""}
+    <details class="more"><summary>Matchup detail</summary>
+      <div class="kv">
+        <span>Possessions</span><b>${f1(num(r[C.poss]))}</b>
+        <span>Pick</span><b>${esc(r[C.pick])} (${pct(num(r[C.pickWin]))})</b>
+        <span>${esc(r[C.away])} AdjO / AdjD</span><b>${f1(num(r[C.aO]))} / ${f1(num(r[C.aD]))}</b>
+        <span>${esc(r[C.home])} AdjO / AdjD</span><b>${f1(num(r[C.hO]))} / ${f1(num(r[C.hD]))}</b>
+        <span>Tempo (away / home)</span><b>${f1(num(r[C.aT]))} / ${f1(num(r[C.hT]))}</b>
+        ${mk!=null&&sp!=null?`<span>Model vs ESPN spread</span><b>${esc(minus((sp-mk>0?"+":"")+(sp-mk).toFixed(1)))} pts</b>`:""}
+        ${num(r[C.ou])!=null&&num(r[C.total])!=null?`<span>Model vs ESPN total</span><b>${esc(minus((num(r[C.total])-num(r[C.ou])>0?"+":"")+(num(r[C.total])-num(r[C.ou])).toFixed(1)))} pts</b>`:""}
+      </div>
+    </details>
+  </article>`;
+}
+
+function renderTeams(){
+  const ci = confInfo();
+  const rows = (S.teams||[]).slice(1).filter(r=>r && r[1]).map(r => ({rank:num(r[11]), team:r[1], conf:r[2], confName:r[12]||r[2], net:num(r[10]), o:num(r[8]), d:num(r[9]), t:num(r[5]), tr:num(r[0])}));
+  let list = rows.filter(x => (ui.teamConf==="all" || x.conf===ui.teamConf) && (!ui.teamQ || x.team.toLowerCase().includes(ui.teamQ.toLowerCase())));
+  const k=ui.teamSort.k, dir=ui.teamSort.dir;
+  list.sort((a,b) => { const va=a[k], vb=b[k]; if (typeof va==="string") return dir*va.localeCompare(vb); return dir*((va??-1e9)-(vb??-1e9)); });
+  const confOpts = Object.keys(ci).sort((a,b)=>(ci[a].rank||99)-(ci[b].rank||99)).map(c => `<option value="${esc(c)}"${ui.teamConf===c?" selected":""}>${esc(ci[c].name||c)}</option>`).join("");
+  const th = (key,label,cls="") => `<th class="${cls}" data-k="${key}" aria-sort="${k===key?(dir>0?"ascending":"descending"):"none"}" scope="col">${label}</th>`;
+  $("#view").innerHTML = `
+    <h2 class="section-h">Team ratings</h2>
+    <div class="filters">
+      <input id="tq" type="search" placeholder="Find a team" value="${esc(ui.teamQ)}" aria-label="Find a team">
+      <select id="tconf" aria-label="Conference"><option value="all">All conferences</option>${confOpts}</select>
+      <span class="muted">${list.length} of ${rows.length} teams</span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr>${th("rank","Model rank")}${th("team","Team","l")}${th("conf","Conf","l")}${th("net","Net rating")}${th("o","Adj. offense")}${th("d","Adj. defense")}${th("t","Tempo")}${th("tr","Torvik rank")}</tr></thead>
+      <tbody>${list.map(x => `<tr><td>${x.rank??""}</td><td class="l team">${esc(x.team)}</td><td class="l"><span class="conf ${tierClass(x.conf,ci)}" title="${esc(x.confName)}">${esc(x.conf)}</span></td><td>${esc(minus((x.net>0?"+":"")+f1(x.net)))}</td><td>${f1(x.o)}</td><td>${f1(x.d)}</td><td>${f1(x.t)}</td><td>${x.tr??""}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note">Model ratings are Torvik's preseason adjusted efficiencies (points per 100 possessions) pulled partway toward each team's conference average. Net rating is offense minus defense; lower defense is better.</p>`;
+  $("#tq").addEventListener("input", e => { ui.teamQ=e.target.value; const p=e.target.selectionStart; renderTeams(); const q=$("#tq"); q.focus(); try{q.setSelectionRange(p,p);}catch(_){} });
+  $("#tconf").addEventListener("change", e => { ui.teamConf=e.target.value; renderTeams(); });
+  document.querySelectorAll("th[data-k]").forEach(h => h.addEventListener("click", () => { const kk=h.dataset.k; if(ui.teamSort.k===kk) ui.teamSort.dir*=-1; else ui.teamSort={k:kk, dir:(kk==="team"||kk==="conf"||kk==="rank"||kk==="tr"||kk==="d")?1:-1}; renderTeams(); }));
+}
+
+function renderConfs(){
+  const ci = confInfo();
+  const list = Object.entries(ci).map(([code,v])=>({code,...v})).sort((a,b)=>(a.rank||99)-(b.rank||99));
+  const nets = list.map(x=>x.net||0);
+  const lo = Math.min(0, ...nets), hi = Math.max(0, ...nets), span = (hi-lo)||1;
+  const zero = (-lo/span)*100;
+  const color = t => t==="Power" ? "var(--court)" : t==="Upper mid-major" ? "var(--accent)" : "var(--away)";
+  $("#view").innerHTML = `
+    <h2 class="section-h">Conference strength</h2>
+    <div class="legend"><span><i style="background:var(--court)"></i>Power</span><span><i style="background:var(--accent)"></i>Upper mid-major</span><span><i style="background:var(--away)"></i>Mid/low-major</span><span>Bars: average team net rating (pts per 100 possessions)</span></div>
+    <div class="cbars">${list.map(x => { const v=x.net||0; const left = v>=0 ? zero : zero - (-v/span)*100; const w = Math.abs(v)/span*100;
+      return `<div class="cbar"><span class="lbl" title="${esc(x.name)}">${esc(x.name)}</span><span class="track"><span class="zero" style="left:${zero}%"></span><span class="fill" style="left:${left}%;width:${w}%;background:${color(x.tier)}"></span></span><span class="val">${esc(minus((v>0?"+":"")+v.toFixed(1)))}</span></div>`; }).join("")}</div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Rank</th><th class="l">Conference</th><th class="l">Tier</th><th>Teams</th><th>Avg offense</th><th>Avg defense</th><th>Avg net</th><th>vs D1 avg</th></tr></thead>
+      <tbody>${list.map(x=>`<tr><td>${x.rank??""}</td><td class="l team">${esc(x.name)} <span class="muted">${esc(x.code)}</span></td><td class="l">${esc(x.tier)}</td><td>${x.teams??""}</td><td>${f1(x.o)}</td><td>${f1(x.d)}</td><td>${esc(minus((x.net>0?"+":"")+f1(x.net)))}</td><td>${esc(minus((x.vs>0?"+":"")+f1(x.vs)))}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note">Conference strength enters every prediction: early in the season each team's rating is pulled partway (15% on opening night) toward its league average, so a team from a deep league gets a lift and a team from a thin league gets marked down. The pull fades as real results come in.</p>`;
+}
+
+function renderAccuracy(){
+  const a = S.acc || [];
+  const head = a[0] || ["Metric","All","Strong","Moderate","Toss-up"];
+  const top = a.slice(1,7), mk = a.slice(9);
+  $("#view").innerHTML = `
+    <h2 class="section-h">How the model is doing</h2>
+    <div class="accgrid">
+      <div><h3>Winners and errors</h3><div class="tablewrap"><table>
+        <thead><tr>${head.map((h,i)=>`<th class="${i===0?"l":""}">${esc(h)}</th>`).join("")}</tr></thead>
+        <tbody>${top.map(r=>`<tr>${head.map((_,i)=>`<td class="${i===0?"l":""}">${esc(cell(r,i))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
+      <div><h3>Against the ESPN line</h3><div class="tablewrap"><table>
+        <tbody>${mk.filter(r=>r&&r[0]).map(r=>`<tr><td class="l">${esc(r[0])}</td><td>${esc(/^-\d/.test(cell(r,1)) ? minus(cell(r,1)) : (cell(r,1)||"—"))}</td></tr>`).join("")}</tbody></table></div></div>
+    </div>
+    <p class="note">Graded from every game ESPN marks Final. ATS and O/U records only count games where the model's number differed from the market by at least the edge thresholds on the sheet's Settings tab.</p>`;
+}
+
+/* ---------- Data (GitHub version: reads the Google Sheet directly) ---------- */
+// The sheet must be shared as "Anyone with the link: Viewer" for this to load.
+const GVIZ = (sheet, range) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheet)}&range=${range}`;
+const SOURCES = { preds: ["Predictions","A1:AM3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"] };
+
+function parseCSV(text){
+  const rows=[]; let row=[], f="", q=false;
+  for (let i=0;i<text.length;i++){
+    const ch=text[i];
+    if (q){ if (ch==='"'){ if (text[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=ch; }
+    else if (ch==='"') q=true;
+    else if (ch===','){ row.push(f); f=""; }
+    else if (ch==='\n'){ row.push(f); rows.push(row); row=[]; f=""; }
+    else if (ch!=='\r') f+=ch;
+  }
+  if (f!=="" || row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+
+// Accuracy is computed here from the Predictions tab, so the page needs only three tabs.
+function computeAccuracy(){
+  const pct = x => (x*100).toFixed(1) + "%";
+  const g = games().map(x=>x.r).filter(r => r[C.status]==="Final");
+  const tiers = ["All","Strong","Moderate","Toss-up"];
+  const out = [["Metric",...tiers]];
+  const by = t => g.filter(r => t==="All" || r[C.conf]===t);
+  const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+  const graded = tiers.map(t => by(t).filter(r => r[C.res]==="Correct"||r[C.res]==="Miss"));
+  out.push(["Games graded", ...graded.map(a=>String(a.length))]);
+  out.push(["Winners correct", ...graded.map(a=>String(a.filter(r=>r[C.res]==="Correct").length))]);
+  out.push(["Winner accuracy", ...graded.map(a=>a.length? pct(a.filter(r=>r[C.res]==="Correct").length/a.length):"—")]);
+  out.push(["Avg predicted win% of pick", ...tiers.map(t=>{ const v=avg(by(t).map(r=>num(r[C.pickWin])).filter(x=>x!=null)); return v==null?"—":pct(v); })]);
+  out.push(["Avg margin error (pts)", ...tiers.map(t=>{ const v=avg(by(t).map(r=>{ const a=num(r[C.as]),h=num(r[C.hs]),sp=num(r[C.spread]); return (a==null||h==null||sp==null)?null:Math.abs((a-h)-sp); }).filter(x=>x!=null)); return v==null?"—":v.toFixed(1); })]);
+  out.push(["Avg total error (pts)", ...tiers.map(t=>{ const v=avg(by(t).map(r=>{ const a=num(r[C.as]),h=num(r[C.hs]),tt=num(r[C.total]); return (a==null||h==null||tt==null)?null:Math.abs(a+h-tt); }).filter(x=>x!=null)); return v==null?"—":v.toFixed(1); })]);
+  const all = games().map(x=>x.r);
+  const rec = col => { const w=g.filter(r=>r[col]==="Win").length, l=g.filter(r=>r[col]==="Loss").length, p=g.filter(r=>r[col]==="Push").length; return [`${w}-${l}-${p}`, (w+l)? pct(w/(w+l)) : "—"]; };
+  const ats=rec(C.atsRes), ou=rec(C.ouRes);
+  const withLine = all.filter(r => num(r[C.mkt])!=null);
+  const tGap = avg(all.map(r=>{ const t=num(r[C.total]), m=num(r[C.ou]); return (t==null||m==null)?null:t-m; }).filter(x=>x!=null));
+  const sGap = avg(withLine.map(r=>Math.abs(num(r[C.spread])-num(r[C.mkt]))));
+  out.push([], ["Against the market","Value"], ["ATS record (W-L-P)", ats[0]], ["ATS win rate", ats[1]], ["O/U record (W-L-P)", ou[0]], ["O/U win rate", ou[1]],
+    ["Games with a market line", String(withLine.length)], ["Avg model total minus market O/U", tGap==null?"—":(tGap>0?"+":"")+tGap.toFixed(1)], ["Avg gap, model spread vs market (pts)", sGap==null?"—":sGap.toFixed(1)]);
+  return out;
+}
+
+async function loadAll(){
+  try {
+    const entries = await Promise.all(Object.entries(SOURCES).map(async ([name,[sheet,range]]) => {
+      const res = await fetch(GVIZ(sheet,range), {cache:"no-store"});
+      const text = await res.text();
+      if (!res.ok || /^\s*</.test(text)) throw new Error("not shared");
+      return [name, parseCSV(text)];
+    }));
+    entries.forEach(([n,v]) => S[n]=v);
+    S.acc = computeAccuracy();
+    S.source="live"; S.storedAt=Date.now(); S.liveErr=null;
+    $("#notice").innerHTML="";
+  } catch(e) {
+    S.liveErr = e;
+    if (!S.preds) $("#view").innerHTML = `<div class="empty">No predictions loaded.</div>`;
+    $("#notice").innerHTML = `<div class="notice err"><p>Couldn't read the model sheet. In Google Sheets, open Share and set General access to "Anyone with the link" (Viewer), then reload this page.</p><button class="btn" id="nb">Try again</button></div>`;
+    $("#nb").addEventListener("click", loadAll);
+  }
+  render();
+}
+
+window.addEventListener("hashchange", render);
+render();
+loadAll();
+setInterval(() => { if (!document.hidden) loadAll(); }, 5*60*1000);
+})();
+</script>
+
+</body>
+</html>
