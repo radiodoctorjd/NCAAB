@@ -319,8 +319,8 @@ function hasLean(s){ return !!s && s!=="No edge"; }
    Division I teams once (cached in the browser for a week) and matches each
    name to an ESPN team for its abbreviation and logo. Names that don't match
    (or non-D1 opponents) just show no logo. */
-const ESPN_TEAMS_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000";
-const ESPN_CACHE_KEY = "ncaab-espn-teams-v1";
+const ESPN_TEAMS_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=500";
+const ESPN_CACHE_KEY = "ncaab-espn-teams-v2";
 let ESPN = null;   // normalized name -> [abbreviation, ESPN team id]
 const normName = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
   .replace(/&/g," and ").replace(/\bsaint\b/g,"st").replace(/\bstate\b/g,"st").replace(/[^a-z0-9]/g,"");
@@ -351,28 +351,56 @@ function teamId(name){
   const [abbr, id] = t, base = "https://a.espncdn.com/i/teamlogos/ncaa/";
   return `<div class="team-id"><span class="abbr">${esc(abbr)}</span><picture><source srcset="${base}500-dark/${id}.png" media="(prefers-color-scheme: dark)"><img src="${base}500/${id}.png" alt="" loading="lazy" onerror="var s=this.previousElementSibling;if(s){s.remove();}else{this.style.display='none';}"></picture></div>`;
 }
+// Two ESPN sources, merged: (1) today's and tomorrow's men's college basketball
+// scoreboards, the same feed the scores site uses, which list both teams of
+// every game with ESPN id, abbreviation and logo; (2) ESPN's full team list,
+// cached for a week when it loads. Either one alone is enough for the cards.
+function addEspnTeam(map, t){
+  if (!t || !t.id) return;
+  const val = [t.abbreviation || "", String(t.id)];
+  // Index by every name ESPN gives, most specific first (first one wins)
+  [t.location, t.shortDisplayName, t.displayName, t.nickname, t.abbreviation].forEach(nm => { const k = normName(nm); if (k && !map[k]) map[k] = val; });
+}
+function mergeEspn(map){
+  if (!Object.keys(map).length) return;
+  ESPN = Object.assign({}, map, ESPN || {});
+  render();
+}
+async function espnJSON(url){
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 10000);
+  try { const res = await fetch(url, {cache:"no-store", signal:ctrl.signal}); return res.ok ? await res.json() : null; }
+  finally { clearTimeout(t); }
+}
+function etYmd(offsetDays){
+  const p = new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(Date.now() + offsetDays*864e5));
+  const g = k => (p.find(x => x.type===k)||{}).value;
+  return g("year") + g("month") + g("day");
+}
 async function loadEspnTeams(){
   try {
     const c = JSON.parse(localStorage.getItem(ESPN_CACHE_KEY) || "null");
-    if (c && c.map && Date.now() - c.at < 7*864e5) { ESPN = c.map; render(); return; }
+    if (c && c.map && Date.now() - c.at < 7*864e5) mergeEspn(c.map);
   } catch(e) {}
-  try {
-    const res = await fetch(ESPN_TEAMS_URL, {cache:"no-store"});
-    if (!res.ok) return;
-    const data = await res.json();
-    const teams = ((((data.sports||[])[0]||{}).leagues||[])[0]||{}).teams || [];
-    const map = {};
-    teams.map(x => x.team || x).forEach(t => {
-      if (!t || !t.id) return;
-      const val = [t.abbreviation || "", t.id];
-      // Index by every name ESPN gives, most specific first (first one wins)
-      [t.location, t.shortDisplayName, t.displayName, t.nickname, t.abbreviation].forEach(nm => { const k = normName(nm); if (k && !map[k]) map[k] = val; });
-    });
-    if (!Object.keys(map).length) return;
-    ESPN = map;
-    try { localStorage.setItem(ESPN_CACHE_KEY, JSON.stringify({at:Date.now(), map})); } catch(e) {}
-    render();
-  } catch(e) { /* ESPN unreachable: cards just show without logos */ }
+  const fromScoreboard = [0, 1].map(async off => {
+    try {
+      const data = await espnJSON(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${etYmd(off)}&groups=50&limit=500`);
+      const map = {};
+      ((data && data.events) || []).forEach(ev => (((ev.competitions||[])[0]||{}).competitors || []).forEach(c => addEspnTeam(map, c.team)));
+      mergeEspn(map);
+    } catch(e) { console.warn("ESPN scoreboard (logos) failed:", e); }
+  });
+  const fromTeamList = (async () => {
+    try {
+      const data = await espnJSON(ESPN_TEAMS_URL);
+      const teams = (((((data && data.sports)||[])[0]||{}).leagues||[])[0]||{}).teams || [];
+      const map = {};
+      teams.forEach(x => addEspnTeam(map, x.team || x));
+      if (!Object.keys(map).length) return;
+      try { localStorage.setItem(ESPN_CACHE_KEY, JSON.stringify({at:Date.now(), map})); } catch(e) {}
+      mergeEspn(map);
+    } catch(e) { console.warn("ESPN team list (logos) failed:", e); }
+  })();
+  await Promise.all([...fromScoreboard, fromTeamList]);
 }
 
 function card(r, ci){
