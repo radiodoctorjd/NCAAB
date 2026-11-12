@@ -95,6 +95,12 @@ main{padding-block:18px 40px}
 .team-id img{display:block;width:30px;height:30px;object-fit:contain}
 .tname{display:flex;align-items:center;gap:8px;min-width:0}
 .tname strong{font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tname .nm{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.tname .nm .top{display:flex;align-items:baseline;gap:8px;min-width:0}
+.tname .nm .sub{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;margin-top:3px}
+.rec{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rec b{font-weight:600}
+.rec .w{color:var(--good)} .rec .l{color:var(--bad)}
 .tname.pick strong{color:var(--fg)}
 .tname:not(.pick) strong{color:var(--muted);font-weight:500}
 .conf{font-size:11px;font-weight:600;letter-spacing:.04em;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;flex:none}
@@ -312,6 +318,24 @@ function renderDay(which){
   document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => { ui.tier=b.dataset.tier; renderDay(which); }));
 }
 function gap(r){ const sp=num(r[C.spread]), mk=num(r[C.mkt]); return (sp==null||mk==null)?0:Math.abs(sp-mk); }
+// "3-1 (1-0) · Away 1-1 · W2" from the sheet's Records tab
+function recordLine(name, side, neutral){
+  const x = (S.recMap||{})[name];
+  if (!x) return "";
+  const wl = (w,l) => `${w}-${l}`;
+  const split = neutral ? `Neutral ${wl(x.nw,x.nl)}` : side==="home" ? `Home ${wl(x.hw,x.hl)}` : `Away ${wl(x.aw,x.al)}`;
+  const st = x.streak ? ` · <span class="${x.streak[0]==="W"?"w":"l"}">${esc(x.streak)}</span>` : "";
+  return `<span class="rec"><b>${wl(x.w,x.l)}</b> (${wl(x.cw,x.cl)}) · ${split}${st}</span>`;
+}
+function buildRecords(){
+  const m = {};
+  (S.records||[]).slice(1).forEach(r => {
+    if (!r || !r[0]) return;
+    const n = i => num(r[i]) || 0;
+    m[r[0]] = {w:n(2), l:n(3), cw:n(4), cl:n(5), hw:n(6), hl:n(7), aw:n(8), al:n(9), streak:r[10]||"", nw:n(11), nl:n(12)};
+  });
+  S.recMap = m;
+}
 function hasLean(s){ return !!s && s!=="No edge"; }
 
 /* ---------- Team logos (ESPN) ----------
@@ -413,8 +437,9 @@ function card(r, ci){
   const sp = num(r[C.spread]), mk = num(r[C.mkt]);
   const hasScore = st!=="Scheduled" && r[C.as]!=="" && r[C.as]!=null;
   const tag = r[C.type]==="Conference" ? "Conference game" : r[C.type]==="vs Non-D1" ? "vs non-D1" : "";
+  const neutral = r[C.neutral]==="Y";
   const team = (name, code, isPick, win, pts, score, side) => `
-      <div class="tname${isPick?" pick":""}">${teamId(name)}<span class="conf ${tierClass(code,ci)}" title="${esc((ci[code]||{}).name||"Non-Division I")}">${esc(code==="Non-D1"?"NON-D1":code)}</span><strong title="${esc(name)}">${esc(name)}</strong>${hasScore?`<span class="score" aria-label="${side} score">${esc(score)}</span>`:""}</div>
+      <div class="tname${isPick?" pick":""}">${teamId(name)}<span class="nm"><span class="top"><strong title="${esc(name)}">${esc(name)}</strong>${hasScore?`<span class="score" aria-label="${side} score">${esc(score)}</span>`:""}</span><span class="sub"><span class="conf ${tierClass(code,ci)}" title="${esc((ci[code]||{}).name||"Non-Division I")}">${esc(code==="Non-D1"?"NON-D1":code)}</span>${recordLine(name, side, neutral)}</span></span></div>
       <div class="wp">${pct(win)}</div>
       <div class="pts">${f1(num(pts))}<small>${side==="away"?"proj":"proj"}</small></div>`;
   const leans = [];
@@ -511,7 +536,7 @@ function renderAccuracy(){
 /* ---------- Data (GitHub version: reads the Google Sheet directly) ---------- */
 // The sheet must be shared as "Anyone with the link: Viewer" for this to load.
 const GVIZ = (sheet, range) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheet)}&range=${range}`;
-const SOURCES = { preds: ["Predictions","A1:AM3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"] };
+const SOURCES = { preds: ["Predictions","A1:AM3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:M400"] };
 
 function parseCSV(text){
   const rows=[]; let row=[], f="", q=false;
@@ -568,6 +593,7 @@ async function loadAll(){
       if (row[0]==="Last data update" && row[1]) S.lastUpdate = row[1];
     } catch(_) {}
     S.acc = computeAccuracy();
+    buildRecords();
     S.source="live"; S.storedAt=Date.now(); S.liveErr=null;
     $("#notice").innerHTML="";
   } catch(e) {
