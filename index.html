@@ -327,12 +327,21 @@ function recordLine(name, side, neutral){
   const st = x.streak ? ` · <span class="${x.streak[0]==="W"?"w":"l"}">${esc(x.streak)}</span>` : "";
   return `<span class="rec"><b>${wl(x.w,x.l)}</b> (${wl(x.cw,x.cl)}) · ${split}${st}</span>`;
 }
+// "2-1-0 · Away 1-0-0" against the spread, for the matchup detail
+function atsLine(name, side, neutral){
+  const x = (S.recMap||{})[name];
+  if (!x) return "—";
+  const r = (w,l,p) => `${w}-${l}-${p}`;
+  const split = neutral ? `Neutral ${r(x.nAtsW,x.nAtsL,x.nAtsP)}` : side==="home" ? `Home ${r(x.hAtsW,x.hAtsL,x.hAtsP)}` : `Away ${r(x.aAtsW,x.aAtsL,x.aAtsP)}`;
+  return `${r(x.atsW,x.atsL,x.atsP)} · ${split}`;
+}
 function buildRecords(){
   const m = {};
   (S.records||[]).slice(1).forEach(r => {
     if (!r || !r[0]) return;
     const n = i => num(r[i]) || 0;
-    m[r[0]] = {w:n(2), l:n(3), cw:n(4), cl:n(5), hw:n(6), hl:n(7), aw:n(8), al:n(9), streak:r[10]||"", nw:n(11), nl:n(12)};
+    m[r[0]] = {w:n(2), l:n(3), cw:n(4), cl:n(5), hw:n(6), hl:n(7), aw:n(8), al:n(9), streak:r[10]||"", nw:n(11), nl:n(12),
+      atsW:n(13), atsL:n(14), atsP:n(15), hAtsW:n(16), hAtsL:n(17), hAtsP:n(18), aAtsW:n(19), aAtsL:n(20), aAtsP:n(21), nAtsW:n(22), nAtsL:n(23), nAtsP:n(24)};
   });
   S.recMap = m;
 }
@@ -466,6 +475,8 @@ function card(r, ci){
         <span>${esc(r[C.away])} AdjO / AdjD</span><b>${f1(num(r[C.aO]))} / ${f1(num(r[C.aD]))}</b>
         <span>${esc(r[C.home])} AdjO / AdjD</span><b>${f1(num(r[C.hO]))} / ${f1(num(r[C.hD]))}</b>
         <span>Tempo (away / home)</span><b>${f1(num(r[C.aT]))} / ${f1(num(r[C.hT]))}</b>
+        <span>${esc(r[C.away])} ATS</span><b>${atsLine(r[C.away], "away", r[C.neutral]==="Y")}</b>
+        <span>${esc(r[C.home])} ATS</span><b>${atsLine(r[C.home], "home", r[C.neutral]==="Y")}</b>
         ${mk!=null&&sp!=null?`<span>Model vs ESPN spread</span><b>${esc(minus((sp-mk>0?"+":"")+(sp-mk).toFixed(1)))} pts</b>`:""}
         ${num(r[C.ou])!=null&&num(r[C.total])!=null?`<span>Model vs ESPN total</span><b>${esc(minus((num(r[C.total])-num(r[C.ou])>0?"+":"")+(num(r[C.total])-num(r[C.ou])).toFixed(1)))} pts</b>`:""}
       </div>
@@ -536,7 +547,7 @@ function renderAccuracy(){
 /* ---------- Data (GitHub version: reads the Google Sheet directly) ---------- */
 // The sheet must be shared as "Anyone with the link: Viewer" for this to load.
 const GVIZ = (sheet, range) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheet)}&range=${range}`;
-const SOURCES = { preds: ["Predictions","A1:AM3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:M400"] };
+const SOURCES = { preds: ["Predictions","A1:AM3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:Y400"] };
 
 function parseCSV(text){
   const rows=[]; let row=[], f="", q=false;
