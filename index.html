@@ -196,7 +196,7 @@ const RANGES = {
   settings: "Settings!A5:B24"
 };
 // Predictions columns (0-based)
-const C = {date:0,tip:1,away:2,home:3,neutral:4,status:5,as:6,hs:7,line:8,ou:9,mkt:10,aO:11,aD:12,aT:13,hO:14,hD:15,hT:16,aConf:17,hConf:18,type:19,poss:20,aPts:21,hPts:22,spread:23,total:24,aWin:25,hWin:26,pick:27,pickWin:28,conf:29,mmm:30,ats:31,tmm:32,ou_l:33,res:34,atsRes:35,ouRes:36};
+const C = {date:0,tip:1,away:2,home:3,neutral:4,status:5,as:6,hs:7,line:8,ou:9,mkt:10,aO:11,aD:12,aT:13,hO:14,hD:15,hT:16,aConf:17,hConf:18,type:19,poss:20,aPts:21,hPts:22,spread:23,total:24,aWin:25,hWin:26,pick:27,pickWin:28,conf:29,mmm:30,ats:31,tmm:32,ou_l:33,res:34,atsRes:35,ouRes:36,open:45,openOU:46,move:47};
 
 const S = { preds:null, teams:null, confs:null, acc:null, settings:null, source:"none", storedAt:null, liveErr:null };
 const ui = { q:"", conf:"all", tier:"all", edges:false, hideNd1:false, sort:"tip", teamQ:"", teamConf:"all", teamSort:{k:"net",dir:-1} };
@@ -345,6 +345,13 @@ function buildRecords(){
   });
   S.recMap = m;
 }
+// "Connecticut −40.5 → −41.5" when the favorite is the same at open and now
+function marketLine(open, now, away, home){
+  if (open==null && now==null) return "No line";
+  if (open==null || now==null) return favLine(open==null ? now : open, away, home);
+  if (Math.sign(open)===Math.sign(now) && open!==0) return `${open<0?home:away} ${minus("-"+Math.abs(open).toFixed(1))} → ${minus("-"+Math.abs(now).toFixed(1))}`;
+  return `${favLine(open, away, home)} → ${favLine(now, away, home)}`;
+}
 function hasLean(s){ return !!s && s!=="No edge"; }
 
 /* ---------- Team logos (ESPN) ----------
@@ -443,7 +450,7 @@ function card(r, ci){
   const stPill = st==="Final" ? `<span class="pill final">Final</span>` : st==="In Progress" ? `<span class="pill live">Live</span>` : "";
   const confCls = r[C.conf]==="Strong"?"strong":r[C.conf]==="Moderate"?"moderate":"toss";
   const res = r[C.res] ? `<span class="pill ${r[C.res]==="Correct"?"ok":"miss"}">${r[C.res]==="Correct"?"Pick correct":"Pick missed"}</span>` : "";
-  const sp = num(r[C.spread]), mk = num(r[C.mkt]);
+  const sp = num(r[C.spread]), mk = num(r[C.mkt]), openSp = num(r[C.open]);
   const hasScore = st!=="Scheduled" && r[C.as]!=="" && r[C.as]!=null;
   const tag = r[C.type]==="Conference" ? "Conference game" : r[C.type]==="vs Non-D1" ? "vs non-D1" : "";
   const neutral = r[C.neutral]==="Y";
@@ -465,7 +472,7 @@ function card(r, ci){
     <dl class="lines">
       <div><dt>Model spread</dt><dd>${esc(favLine(sp, r[C.away], r[C.home]))}</dd></div>
       <div><dt>Model total</dt><dd>${f1(num(r[C.total]))}</dd></div>
-      <div><dt>ESPN line</dt><dd class="mk">${mk==null?"No line":esc(favLine(mk, r[C.away], r[C.home]))}${r[C.ou]?` · ${esc(r[C.ou])}`:""}</dd></div>
+      <div><dt>${openSp!=null&&mk!=null?"Line (open → now)":"Market line"}</dt><dd class="mk">${esc(marketLine(openSp, mk, r[C.away], r[C.home]))}${r[C.ou]?` · ${esc(r[C.ou])}`:""}</dd></div>
     </dl>
     ${leans.length?`<div class="leans">${leans.join("")}</div>`:""}
     <details class="more"><summary>Matchup detail</summary>
@@ -477,7 +484,9 @@ function card(r, ci){
         <span>Tempo (away / home)</span><b>${f1(num(r[C.aT]))} / ${f1(num(r[C.hT]))}</b>
         <span>${esc(r[C.away])} ATS</span><b>${atsLine(r[C.away], "away", r[C.neutral]==="Y")}</b>
         <span>${esc(r[C.home])} ATS</span><b>${atsLine(r[C.home], "home", r[C.neutral]==="Y")}</b>
-        ${mk!=null&&sp!=null?`<span>Model vs ESPN spread</span><b>${esc(minus((sp-mk>0?"+":"")+(sp-mk).toFixed(1)))} pts</b>`:""}
+        ${openSp!=null&&sp!=null?`<span>Model vs opening spread</span><b>${esc(minus((sp-openSp>0?"+":"")+(sp-openSp).toFixed(1)))} pts</b>`:""}
+        ${mk!=null&&sp!=null?`<span>Model vs current spread</span><b>${esc(minus((sp-mk>0?"+":"")+(sp-mk).toFixed(1)))} pts</b>`:""}
+        ${r[C.move]?`<span>Line move since open</span><b>${esc(r[C.move]==="Toward"?"Toward the model":r[C.move]==="Away"?"Away from the model":"No move")}</b>`:""}
         ${num(r[C.ou])!=null&&num(r[C.total])!=null?`<span>Model vs ESPN total</span><b>${esc(minus((num(r[C.total])-num(r[C.ou])>0?"+":"")+(num(r[C.total])-num(r[C.ou])).toFixed(1)))} pts</b>`:""}
       </div>
     </details>
@@ -541,13 +550,13 @@ function renderAccuracy(){
       <div><h3>Against the ESPN line</h3><div class="tablewrap"><table>
         <tbody>${mk.filter(r=>r&&r[0]).map(r=>`<tr><td class="l">${esc(r[0])}</td><td>${esc(/^-\d/.test(cell(r,1)) ? minus(cell(r,1)) : (cell(r,1)||"—"))}</td></tr>`).join("")}</tbody></table></div></div>
     </div>
-    <p class="note">Graded from every game ESPN marks Final. ATS and O/U records only count games where the model's number differed from the market by at least the edge thresholds on the sheet's Settings tab.</p>`;
+    <p class="note">Graded from every game ESPN marks Final. ATS leans are made and graded against the opening line when one exists. Line moves compare the opening line with the last pregame line: a model with a real edge sees the line move its way more than half the time.</p>`;
 }
 
 /* ---------- Data (GitHub version: reads the Google Sheet directly) ---------- */
 // The sheet must be shared as "Anyone with the link: Viewer" for this to load.
 const GVIZ = (sheet, range) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheet)}&range=${range}`;
-const SOURCES = { preds: ["Predictions","A1:AM3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:Y400"] };
+const SOURCES = { preds: ["Predictions","A1:AW3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:Y400"] };
 
 function parseCSV(text){
   const rows=[]; let row=[], f="", q=false;
@@ -586,6 +595,8 @@ function computeAccuracy(){
   const sGap = avg(withLine.map(r=>Math.abs(num(r[C.spread])-num(r[C.mkt]))));
   out.push([], ["Against the market","Value"], ["ATS record (W-L-P)", ats[0]], ["ATS win rate", ats[1]], ["O/U record (W-L-P)", ou[0]], ["O/U win rate", ou[1]],
     ["Games with a market line", String(withLine.length)], ["Avg model total minus market O/U", tGap==null?"—":(tGap>0?"+":"")+tGap.toFixed(1)], ["Avg gap, model spread vs market (pts)", sGap==null?"—":sGap.toFixed(1)]);
+  const tw = all.filter(r => r[C.move]==="Toward").length, aw = all.filter(r => r[C.move]==="Away").length;
+  out.push(["Line moved toward model on ATS leans (toward-away)", `${tw}-${aw}`], ["Share of line moves toward the model", (tw+aw) ? pct(tw/(tw+aw)) : "—"]);
   return out;
 }
 
