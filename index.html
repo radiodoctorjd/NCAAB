@@ -118,6 +118,11 @@ main{padding-block:18px 40px}
 .lines dd{margin:0;font-weight:600;font-size:14px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .lines dd.mk{font-weight:500;color:var(--muted)}
 .leans{display:flex;flex-wrap:wrap;gap:6px}
+.mainpick{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:14px}
+.mainpick .ptype{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:var(--court-soft);color:var(--court)}
+.mainpick .ptype.ats{background:var(--accent-soft);color:var(--accent)}
+.mainpick b{font-size:16px}
+.mainpick .why{color:var(--muted);font-size:12px}
 .lean{font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-variant-numeric:tabular-nums}
 .lean em{font-style:normal;font-weight:500;opacity:.8}
 details.more summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none}
@@ -146,7 +151,7 @@ td.team{font-weight:600}
 .cbar .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.accgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.accgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(520px,100%),1fr));gap:16px}
 .accgrid h3{font-family:var(--display);font-size:20px;margin:0 0 8px}
 .note{color:var(--muted);font-size:13px;margin-top:10px;max-width:70ch}
 footer{border-top:1px solid var(--line);color:var(--muted);font-size:13px}
@@ -196,7 +201,7 @@ const RANGES = {
   settings: "Settings!A5:B24"
 };
 // Predictions columns (0-based)
-const C = {date:0,tip:1,away:2,home:3,neutral:4,status:5,as:6,hs:7,line:8,ou:9,mkt:10,aO:11,aD:12,aT:13,hO:14,hD:15,hT:16,aConf:17,hConf:18,type:19,poss:20,aPts:21,hPts:22,spread:23,total:24,aWin:25,hWin:26,pick:27,pickWin:28,conf:29,mmm:30,ats:31,tmm:32,ou_l:33,res:34,atsRes:35,ouRes:36,open:45,openOU:46,move:47};
+const C = {date:0,tip:1,away:2,home:3,neutral:4,status:5,as:6,hs:7,line:8,ou:9,mkt:10,aO:11,aD:12,aT:13,hO:14,hD:15,hT:16,aConf:17,hConf:18,type:19,poss:20,aPts:21,hPts:22,spread:23,total:24,aWin:25,hWin:26,pick:27,pickWin:28,conf:29,mmm:30,ats:31,tmm:32,ou_l:33,res:34,atsRes:35,ouRes:36,open:45,openOU:46,move:47,mType:49,mPick:50,mConf:51,mRes:52};
 
 const S = { preds:null, teams:null, confs:null, acc:null, settings:null, source:"none", storedAt:null, liveErr:null };
 const ui = { q:"", conf:"all", tier:"all", edges:false, hideNd1:false, sort:"tip", teamQ:"", teamConf:"all", teamSort:{k:"net",dir:-1} };
@@ -255,18 +260,19 @@ function renderDay(which){
   const ci = confInfo();
   const all = games().filter(g => g.key===key);
   const finals = all.filter(g => g.r[C.status]==="Final");
-  const correct = finals.filter(g => g.r[C.res]==="Correct").length;
-  const strong = all.filter(g => g.r[C.conf]==="Strong").length;
-  const atsN = all.filter(g => hasLean(g.r[C.ats])).length;
+  const won = finals.filter(g => g.r[C.mRes]==="Covered" || g.r[C.mRes]==="Correct").length;
+  const decided = finals.filter(g => ["Covered","Correct","Didn't cover","Miss"].includes(g.r[C.mRes])).length;
+  const strong = all.filter(g => g.r[C.mConf]==="Strong").length;
+  const atsN = all.filter(g => g.r[C.mType]==="ATS").length;
   const ouN = all.filter(g => hasLean(g.r[C.ou_l])).length;
   const live = all.filter(g => g.r[C.status]==="In Progress").length;
 
   let list = all.filter(g => {
     const r=g.r;
     if (ui.hideNd1 && r[C.type]==="vs Non-D1") return false;
-    if (ui.tier!=="all" && r[C.conf]!==ui.tier) return false;
+    if (ui.tier!=="all" && r[C.mConf]!==ui.tier) return false;
     if (ui.conf!=="all" && r[C.aConf]!==ui.conf && r[C.hConf]!==ui.conf) return false;
-    if (ui.edges && !hasLean(r[C.ats]) && !hasLean(r[C.ou_l])) return false;
+    if (ui.edges && r[C.mType]!=="ATS" && !hasLean(r[C.ou_l])) return false;
     if (ui.q){ const q=ui.q.toLowerCase(); if(!(r[C.away].toLowerCase().includes(q) || r[C.home].toLowerCase().includes(q))) return false; }
     return true;
   });
@@ -288,16 +294,16 @@ function renderDay(which){
     <div class="strip">
       <div class="stat"><b>${all.length}</b><span>Games</span></div>
       <div class="stat"><b>${strong}</b><span>Strong picks</span></div>
-      <div class="stat"><b>${atsN}</b><span>ATS leans</span></div>
-      <div class="stat"><b>${ouN}</b><span>O/U leans</span></div>
+      <div class="stat"><b>${atsN}</b><span>ATS picks</span></div>
+      ${ouN?`<div class="stat"><b>${ouN}</b><span>O/U leans</span></div>`:""}
       ${live?`<div class="stat"><b>${live}</b><span>Live</span></div>`:""}
-      ${finals.length?`<div class="stat"><b>${correct}/${finals.length}</b><span>Winners correct</span></div>`:""}
+      ${decided?`<div class="stat"><b>${won}/${decided}</b><span>Picks won</span></div>`:""}
     </div>
     <div class="filters" role="search">
       <input id="q" type="search" placeholder="Find a team" value="${esc(ui.q)}" aria-label="Find a team">
       <select id="confSel" aria-label="Conference"><option value="all">All conferences</option>${confOpts}</select>
       <div class="seg" role="group" aria-label="Confidence">${segBtn("all","All")}${segBtn("Strong","Strong")}${segBtn("Moderate","Moderate")}${segBtn("Toss-up","Toss-up")}</div>
-      <label class="toggle"><input id="edges" type="checkbox"${ui.edges?" checked":""}> Edges vs market</label>
+      <label class="toggle"><input id="edges" type="checkbox"${ui.edges?" checked":""}> ATS picks only</label>
       <label class="toggle"><input id="nd1" type="checkbox"${ui.hideNd1?" checked":""}> Hide non-D1 games</label>
       <select id="sortSel" aria-label="Sort">
         <option value="tip"${ui.sort==="tip"?" selected":""}>Sort: tip time</option>
@@ -448,9 +454,20 @@ function card(r, ci){
   const homePick = (hWin||0) >= 0.5;
   const st = r[C.status];
   const stPill = st==="Final" ? `<span class="pill final">Final</span>` : st==="In Progress" ? `<span class="pill live">Live</span>` : "";
-  const confCls = r[C.conf]==="Strong"?"strong":r[C.conf]==="Moderate"?"moderate":"toss";
-  const res = r[C.res] ? `<span class="pill ${r[C.res]==="Correct"?"ok":"miss"}">${r[C.res]==="Correct"?"Pick correct":"Pick missed"}</span>` : "";
+  const mConf = r[C.mConf] || r[C.conf];
+  const confCls = mConf==="Strong"?"strong":mConf==="Moderate"?"moderate":"toss";
+  const RES = {"Covered":["ok","Covered"], "Didn't cover":["miss","Didn't cover"], "Push":["final","Push"], "Correct":["ok","Pick correct"], "Miss":["miss","Pick missed"]};
+  const rr = RES[r[C.mRes]];
+  const res = rr ? `<span class="pill ${rr[0]}">${rr[1]}</span>` : "";
   const sp = num(r[C.spread]), mk = num(r[C.mkt]), openSp = num(r[C.open]);
+  const isAts = r[C.mType]==="ATS";
+  const pickLine = openSp!=null ? openSp : mk;
+  const pickHome = isAts ? (sp!=null && pickLine!=null && sp < pickLine) : homePick;
+  const edge = (sp!=null && pickLine!=null) ? Math.abs(sp - pickLine) : null;
+  const why = isAts
+    ? `${edge!=null?edge.toFixed(1)+"-pt edge vs the "+(openSp!=null?"opening":"current")+" line":""}`
+    : (pickLine!=null ? `${pct(Math.max(aWin||0,hWin||0))} to win · coin flip against the spread` : `${pct(Math.max(aWin||0,hWin||0))} to win · no line posted`);
+  const mainPick = `<div class="mainpick"><span class="ptype${isAts?" ats":""}">${isAts?"ATS":"Winner"}</span><b>${esc(minus(r[C.mPick]||r[C.pick]||""))}</b><span class="why">${esc(why)}</span></div>`;
   const hasScore = st!=="Scheduled" && r[C.as]!=="" && r[C.as]!=null;
   const tag = r[C.type]==="Conference" ? "Conference game" : r[C.type]==="vs Non-D1" ? "vs non-D1" : "";
   const neutral = r[C.neutral]==="Y";
@@ -459,14 +476,14 @@ function card(r, ci){
       <div class="wp">${pct(win)}</div>
       <div class="pts">${f1(num(pts))}<small>${side==="away"?"proj":"proj"}</small></div>`;
   const leans = [];
-  if (hasLean(r[C.ats])) leans.push(`<span class="lean">ATS ${esc(minus(r[C.ats]))} <em>${r[C.atsRes]?"· "+esc(r[C.atsRes]):""}</em></span>`);
   if (hasLean(r[C.ou_l])) leans.push(`<span class="lean">${esc(r[C.ou_l])} <em>${r[C.ouRes]?"· "+esc(r[C.ouRes]):""}</em></span>`);
   return `<article class="card${st==="Final"?" final":""}">
     <div class="meta"><span class="time">${esc(tipTime(r[C.tip]))}</span>${stPill}${r[C.neutral]==="Y"?`<span class="pill neutral">Neutral</span>`:""}${tag?`<span>${tag}</span>`:""}
-      <span class="right"><span class="pill ${confCls}">${esc(r[C.conf])}</span>${res}</span></div>
+      <span class="right"><span class="pill ${confCls}">${esc(mConf)}</span>${res}</span></div>
+    ${mainPick}
     <div class="teams">
-      ${team(r[C.away], r[C.aConf], !homePick, aWin, r[C.aPts], r[C.as], "away")}
-      ${team(r[C.home], r[C.hConf], homePick, hWin, r[C.hPts], r[C.hs], "home")}
+      ${team(r[C.away], r[C.aConf], !pickHome, aWin, r[C.aPts], r[C.as], "away")}
+      ${team(r[C.home], r[C.hConf], pickHome, hWin, r[C.hPts], r[C.hs], "home")}
     </div>
     <div class="bar" role="img" aria-label="Win probability: ${esc(r[C.away])} ${pct(aWin)}, ${esc(r[C.home])} ${pct(hWin)}"><i style="width:${((hWin||0)*100).toFixed(1)}%"></i></div>
     <dl class="lines">
@@ -478,7 +495,7 @@ function card(r, ci){
     <details class="more"><summary>Matchup detail</summary>
       <div class="kv">
         <span>Possessions</span><b>${f1(num(r[C.poss]))}</b>
-        <span>Pick</span><b>${esc(r[C.pick])} (${pct(num(r[C.pickWin]))})</b>
+        <span>Outright winner</span><b>${esc(r[C.pick])} (${pct(num(r[C.pickWin]))})</b>
         <span>${esc(r[C.away])} AdjO / AdjD</span><b>${f1(num(r[C.aO]))} / ${f1(num(r[C.aD]))}</b>
         <span>${esc(r[C.home])} AdjO / AdjD</span><b>${f1(num(r[C.hO]))} / ${f1(num(r[C.hD]))}</b>
         <span>Tempo (away / home)</span><b>${f1(num(r[C.aT]))} / ${f1(num(r[C.hT]))}</b>
@@ -538,25 +555,25 @@ function renderConfs(){
 }
 
 function renderAccuracy(){
-  const a = S.acc || [];
-  const head = a[0] || ["Metric","All","Strong","Moderate","Toss-up"];
-  const top = a.slice(1,7), mk = a.slice(9);
+  const A = S.acc || {};
+  const table = (title, rows, head) => `<div><h3>${esc(title)}</h3><div class="tablewrap"><table>
+      ${head?`<thead><tr>${head.map((h,i)=>`<th class="${i===0?"l":""}">${esc(h)}</th>`).join("")}</tr></thead>`:""}
+      <tbody>${(rows||[]).map(r=>`<tr>${r.map((c,i)=>`<td class="${i===0?"l":""}">${esc(c==null||c===""?"—":c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
   $("#view").innerHTML = `
     <h2 class="section-h">How the model is doing</h2>
     <div class="accgrid">
-      <div><h3>Winners and errors</h3><div class="tablewrap"><table>
-        <thead><tr>${head.map((h,i)=>`<th class="${i===0?"l":""}">${esc(h)}</th>`).join("")}</tr></thead>
-        <tbody>${top.map(r=>`<tr>${head.map((_,i)=>`<td class="${i===0?"l":""}">${esc(cell(r,i))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
-      <div><h3>Against the ESPN line</h3><div class="tablewrap"><table>
-        <tbody>${mk.filter(r=>r&&r[0]).map(r=>`<tr><td class="l">${esc(r[0])}</td><td>${esc(/^-\d/.test(cell(r,1)) ? minus(cell(r,1)) : (cell(r,1)||"—"))}</td></tr>`).join("")}</tbody></table></div></div>
+      ${table("Main picks", A.main, ["", "All", "Strong", "Moderate", "Toss-up"])}
+      ${table("ATS picks (edge 3+ vs the line)", A.ats, ["", "All", "Strong", "Moderate"])}
+      ${table("Winner picks (coin flips and games with no line)", A.winner, ["", "All", "Strong", "Moderate", "Toss-up"])}
+      ${table("Every game, outright winner", A.all, ["", "All", "Strong", "Moderate", "Toss-up"])}
     </div>
-    <p class="note">Graded from every game ESPN marks Final. ATS leans are made and graded against the opening line when one exists. Line moves compare the opening line with the last pregame line: a model with a real edge sees the line move its way more than half the time.</p>`;
+    <p class="note">The main pick is against the spread when the model's number differs from the line by 3 or more points (graded against the opening line when there is one), and the outright winner otherwise. 52.4% against the spread breaks even at standard -110 odds. Line moves compare the opening line with the last pregame line: a model with a real edge sees the line move toward its pick more than half the time.</p>`;
 }
 
 /* ---------- Data (GitHub version: reads the Google Sheet directly) ---------- */
 // The sheet must be shared as "Anyone with the link: Viewer" for this to load.
 const GVIZ = (sheet, range) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheet)}&range=${range}`;
-const SOURCES = { preds: ["Predictions","A1:AW3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:Y400"] };
+const SOURCES = { preds: ["Predictions","A1:BA3000"], teams: ["Teams","A1:M400"], confs: ["Conferences","A1:I40"], records: ["Records","A1:Y400"] };
 
 function parseCSV(text){
   const rows=[]; let row=[], f="", q=false;
@@ -572,32 +589,33 @@ function parseCSV(text){
   return rows;
 }
 
-// Accuracy is computed here from the Predictions tab, so the page needs only three tabs.
+// Accuracy is computed here from the Predictions tab (same rules as the sheet's Accuracy tab).
 function computeAccuracy(){
-  const pct = x => (x*100).toFixed(1) + "%";
-  const g = games().map(x=>x.r).filter(r => r[C.status]==="Final");
-  const tiers = ["All","Strong","Moderate","Toss-up"];
-  const out = [["Metric",...tiers]];
-  const by = t => g.filter(r => t==="All" || r[C.conf]===t);
+  const P = x => x==null ? "—" : (x*100).toFixed(1) + "%";
   const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
-  const graded = tiers.map(t => by(t).filter(r => r[C.res]==="Correct"||r[C.res]==="Miss"));
-  out.push(["Games graded", ...graded.map(a=>String(a.length))]);
-  out.push(["Winners correct", ...graded.map(a=>String(a.filter(r=>r[C.res]==="Correct").length))]);
-  out.push(["Winner accuracy", ...graded.map(a=>a.length? pct(a.filter(r=>r[C.res]==="Correct").length/a.length):"—")]);
-  out.push(["Avg predicted win% of pick", ...tiers.map(t=>{ const v=avg(by(t).map(r=>num(r[C.pickWin])).filter(x=>x!=null)); return v==null?"—":pct(v); })]);
-  out.push(["Avg margin error (pts)", ...tiers.map(t=>{ const v=avg(by(t).map(r=>{ const a=num(r[C.as]),h=num(r[C.hs]),sp=num(r[C.spread]); return (a==null||h==null||sp==null)?null:Math.abs((a-h)-sp); }).filter(x=>x!=null)); return v==null?"—":v.toFixed(1); })]);
-  out.push(["Avg total error (pts)", ...tiers.map(t=>{ const v=avg(by(t).map(r=>{ const a=num(r[C.as]),h=num(r[C.hs]),tt=num(r[C.total]); return (a==null||h==null||tt==null)?null:Math.abs(a+h-tt); }).filter(x=>x!=null)); return v==null?"—":v.toFixed(1); })]);
-  const all = games().map(x=>x.r);
-  const rec = col => { const w=g.filter(r=>r[col]==="Win").length, l=g.filter(r=>r[col]==="Loss").length, p=g.filter(r=>r[col]==="Push").length; return [`${w}-${l}-${p}`, (w+l)? pct(w/(w+l)) : "—"]; };
-  const ats=rec(C.atsRes), ou=rec(C.ouRes);
-  const withLine = all.filter(r => num(r[C.mkt])!=null);
-  const tGap = avg(all.map(r=>{ const t=num(r[C.total]), m=num(r[C.ou]); return (t==null||m==null)?null:t-m; }).filter(x=>x!=null));
-  const sGap = avg(withLine.map(r=>Math.abs(num(r[C.spread])-num(r[C.mkt]))));
-  out.push([], ["Against the market","Value"], ["ATS record (W-L-P)", ats[0]], ["ATS win rate", ats[1]], ["O/U record (W-L-P)", ou[0]], ["O/U win rate", ou[1]],
-    ["Games with a market line", String(withLine.length)], ["Avg model total minus market O/U", tGap==null?"—":(tGap>0?"+":"")+tGap.toFixed(1)], ["Avg gap, model spread vs market (pts)", sGap==null?"—":sGap.toFixed(1)]);
-  const tw = all.filter(r => r[C.move]==="Toward").length, aw = all.filter(r => r[C.move]==="Away").length;
-  out.push(["Line moved toward model on ATS leans (toward-away)", `${tw}-${aw}`], ["Share of line moves toward the model", (tw+aw) ? pct(tw/(tw+aw)) : "—"]);
-  return out;
+  const fin = games().map(x=>x.r).filter(r => r[C.status]==="Final");
+  const W = r => r[C.mRes]==="Covered" || r[C.mRes]==="Correct", L = r => r[C.mRes]==="Didn't cover" || r[C.mRes]==="Miss", Pu = r => r[C.mRes]==="Push";
+  const rec = a => { const w=a.filter(W).length, l=a.filter(L).length, p=a.filter(Pu).length; return [`${w}-${l}-${p}`, (w+l)?P(w/(w+l)):"—", w+l+p]; };
+  const tiers = ["All","Strong","Moderate","Toss-up"];
+  const inTier = (a,t) => t==="All" ? a : a.filter(r => r[C.mConf]===t);
+  const main = fin.filter(r => r[C.mRes]);
+  const mr = tiers.map(t => rec(inTier(main,t)));
+  const ats = main.filter(r => r[C.mType]==="ATS");
+  const ar = ["All","Strong","Moderate"].map(t => rec(inTier(ats,t)));
+  const mv = t => { const a=inTier(ats,t); const tw=a.filter(r=>r[C.move]==="Toward").length, aw=a.filter(r=>r[C.move]==="Away").length; return [`${tw}-${aw}`, (tw+aw)?P(tw/(tw+aw)):"—"]; };
+  const mvs = ["All","Strong","Moderate"].map(mv);
+  const win = main.filter(r => r[C.mType]==="Winner");
+  const wr = tiers.map(t => { const a=inTier(win,t); const c=a.filter(r=>r[C.mRes]==="Correct").length; return [String(a.length), String(c), a.length?P(c/a.length):"—"]; });
+  const byConf = t => fin.filter(r => (t==="All" || r[C.conf]===t) && (r[C.res]==="Correct" || r[C.res]==="Miss"));
+  const ow = tiers.map(t => { const a=byConf(t); const c=a.filter(r=>r[C.res]==="Correct").length; return [String(a.length), String(c), a.length?P(c/a.length):"—",
+    P(avg(a.map(r=>num(r[C.pickWin])).filter(x=>x!=null))),
+    (v => v==null?"—":v.toFixed(1))(avg(a.map(r=>{ const x=num(r[C.as]),h=num(r[C.hs]),sp=num(r[C.spread]); return (x==null||h==null||sp==null)?null:Math.abs((x-h)-sp); }).filter(x=>x!=null)))]; });
+  return {
+    main: [["Picks graded", ...mr.map(x=>String(x[2]))], ["Record (W-L-P)", ...mr.map(x=>x[0])], ["Win rate", ...mr.map(x=>x[1])]],
+    ats: [["Record (W-L-P)", ...ar.map(x=>x[0])], ["Win rate (52.4% breaks even)", ...ar.map(x=>x[1])], ["Line moved toward the pick (toward-away)", ...mvs.map(x=>x[0])], ["Share of line moves toward the pick", ...mvs.map(x=>x[1])]],
+    winner: [["Picks graded", ...wr.map(x=>x[0])], ["Correct", ...wr.map(x=>x[1])], ["Accuracy", ...wr.map(x=>x[2])]],
+    all: [["Games graded", ...ow.map(x=>x[0])], ["Winners correct", ...ow.map(x=>x[1])], ["Winner accuracy", ...ow.map(x=>x[2])], ["Avg predicted win% of pick", ...ow.map(x=>x[3])], ["Avg margin error (pts)", ...ow.map(x=>x[4])]]
+  };
 }
 
 async function loadAll(){
